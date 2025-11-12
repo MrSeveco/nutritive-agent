@@ -9,4 +9,10 @@ class Appointment extends Model
 {
     /** @use HasFactory<\Database\Factories\AppointmentFactory> */
     use HasFactory;
+
+    protected $fillable = [
+        'user_id',
+        'appointment_date',
+        'status',
+    ];
 }

@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Appointment;
 use App\Http\Requests\StoreAppointmentRequest;
 use App\Http\Requests\UpdateAppointmentRequest;
+use Illuminate\Http\Response;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class AppointmentController extends Controller
 {
@@ -13,7 +16,9 @@ class AppointmentController extends Controller
      */
     public function index()
     {
-        //
+        return Inertia::render('Appointments/Index', [
+            'appointments' => Appointment::all()
+        ]);
     }
 
     /**
@@ -21,7 +26,8 @@ class AppointmentController extends Controller
      */
     public function create()
     {
-        //
+        $appointment = Appointment::create($request->all());
+        return response()->json(['appointment' => $appointment], Response::HTTP_CREATED);
     }
 
     /**
@@ -29,23 +35,8 @@ class AppointmentController extends Controller
      */
     public function store(StoreAppointmentRequest $request)
     {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Appointment $appointment)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Appointment $appointment)
-    {
-        //
+        $appointment = Appointment::create($request->all());
+        return response()->json(['appointment' => $appointment], Response::HTTP_CREATED);
     }
 
     /**
@@ -53,7 +44,8 @@ class AppointmentController extends Controller
      */
     public function update(UpdateAppointmentRequest $request, Appointment $appointment)
     {
-        //
+        $appointment->update($request->all());
+        return response()->json(['appointment' => $appointment], Response::HTTP_OK);
     }
 
     /**
@@ -61,6 +53,7 @@ class AppointmentController extends Controller
      */
     public function destroy(Appointment $appointment)
     {
-        //
+        $appointment->delete();
+        return response()->json(['appointment' => $appointment], Response::HTTP_ACCEPTED);
     }
 }
