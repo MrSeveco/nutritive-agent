@@ -263,10 +263,9 @@ async function fetchEvents(fetchInfo, successCallback, failureCallback) {
             },
         });
         
-        const events = [
-            ...response.data.availableSlots,
-            ...response.data.bookedAppointments,
-        ];
+        // CORRECCIÓN: El backend ahora devuelve directamente el array de eventos.
+        // Antes devolvía un objeto { availableSlots: [], bookedAppointments: [] }, pero eso cambió.
+        const events = response.data;
         
         successCallback(events);
     } catch (error) {

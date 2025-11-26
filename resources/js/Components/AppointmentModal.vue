@@ -88,31 +88,17 @@ import {
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
-    isOpen: {
-        type: Boolean,
-        default: false
-    },
+    isOpen: Boolean,
     type: {
         type: String,
-        default: 'book',
-        validator: value => ['book', 'cancel', 'success', 'error'].includes(value)
+        default: 'book' // book, cancel, info
     },
-    title: {
-        type: String,
-        default: ''
-    },
-    message: {
-        type: String,
-        default: ''
-    },
-    appointmentDate: {
-        type: Date,
-        default: null
-    },
-    isLoading: {
-        type: Boolean,
-        default: false
-    }
+    title: String,
+    message: String,
+    // CORRECCIÓN: Permitir String o Date para evitar el warning de Vue
+    appointmentDate: [String, Date],
+    appointmentId: [Number, String],
+    isLoading: Boolean
 });
 
 const emit = defineEmits(['close', 'confirm']);
