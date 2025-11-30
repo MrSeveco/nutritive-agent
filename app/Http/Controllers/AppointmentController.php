@@ -2,15 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\AppointmentNotificationMail;
 use App\Models\Appointment;
 use App\Models\User;
 use App\Http\Requests\StoreAppointmentRequest;
 use App\Http\Requests\UpdateAppointmentRequest;
+use App\Services\DoctorShiftAllocator;
 use Illuminate\Http\Response;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 
 class AppointmentController extends Controller
@@ -36,12 +39,24 @@ class AppointmentController extends Controller
     {
         $daysAvailable = $this->getAvailableDays();
         $specialtyColumn = $this->getSpecialtyColumn();
+        $referenceDate = Carbon::now('America/Bogota');
+
         $doctors = User::query()
             ->select('id', 'name', $specialtyColumn . ' as speciality')
             ->whereIn('role', ['doctor', 'doctor_s'])
             ->orderBy('speciality')
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(function ($doctor) use ($referenceDate) {
+                $shift = DoctorShiftAllocator::getShiftForDate($doctor->id, $referenceDate->copy());
+
+                $doctor->shift = $shift ? [
+                    'start' => $shift['start']->format('H:i'),
+                    'end' => $shift['end']->format('H:i'),
+                ] : null;
+
+                return $doctor;
+            });
 
         $doctorsBySpecialty = $doctors
             ->groupBy('speciality')
@@ -105,6 +120,7 @@ class AppointmentController extends Controller
 
         $bookedAppointments = Appointment::with('user')
             ->where('user_id', $userId)
+            ->where('status', '!=', 'rejected')
             ->whereRaw("appointment_date >= ? AND appointment_date <= ?", [
                 $start->format('Y-m-d 00:00:00'),
                 $end->format('Y-m-d 23:59:59')
@@ -134,8 +150,15 @@ class AppointmentController extends Controller
                 // LOG 5: ¡Éxito! Entró al IF del día
                 Log::info("-> El día es válido. Generando horas...");
 
-                $slotTime = $currentDate->copy()->setTime(8, 0, 0);
-                $endOfDay = $currentDate->copy()->setTime(18, 0, 0);
+                $shift = DoctorShiftAllocator::getShiftForDate($userId, $currentDate);
+
+                if (!$shift) {
+                    $currentDate->addDay();
+                    continue;
+                }
+
+                $slotTime = $shift['start']->copy();
+                $endOfDay = $shift['end']->copy();
 
                 while ($slotTime->lt($endOfDay)) {
                     $slotTimeFormatted = $slotTime->format('Y-m-d H:i:s');
@@ -313,6 +336,7 @@ class AppointmentController extends Controller
     {
         try {
             $appointment = Appointment::create($request->validated());
+            $this->sendNotification($appointment, 'created');
 
             if ($request->wantsJson()) {
                 return response()->json([
@@ -353,6 +377,10 @@ class AppointmentController extends Controller
      */
     public function show(Appointment $appointment)
     {
+        if ($appointment->user_id !== auth()->id()) {
+            abort(403);
+        }
+
         return Inertia::render('Appointments/View', [
             'appointment' => $appointment->load('user'),
         ]);
@@ -404,66 +432,97 @@ class AppointmentController extends Controller
     /**
      * Cancel an appointment (delete the record).
      */
-    public function cancel(Appointment $appointment)
+    public function cancel(Request $request, Appointment $appointment)
     {
-        try {
-            $appointment->delete();
+        $this->authorizeDoctor($appointment);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Cita cancelada y eliminada exitosamente',
-            ], Response::HTTP_OK);
+        try {
+            $appointment->update(['status' => 'canceled']);
+            $appointment->refresh();
+            $this->sendNotification($appointment, 'canceled');
+            return $this->respondSuccess($request, 'Cita cancelada exitosamente', $appointment);
 
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al cancelar la cita: ' . $e->getMessage(),
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->respondError($request, 'Error al cancelar la cita: ' . $e->getMessage());
         }
     }
 
     /**
      * Reject an appointment by changing status to rejected.
      */
-    public function reject(Appointment $appointment)
+    public function reject(Request $request, Appointment $appointment)
     {
+        $this->authorizeDoctor($appointment);
+
         try {
             $appointment->update(['status' => 'rejected']);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Cita rechazada exitosamente',
-                'appointment' => $appointment,
-            ], Response::HTTP_OK);
+            $appointment->refresh();
+            $this->sendNotification($appointment, 'rejected');
+            return $this->respondSuccess($request, 'Cita rechazada exitosamente', $appointment);
 
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al rechazar la cita: ' . $e->getMessage(),
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->respondError($request, 'Error al rechazar la cita: ' . $e->getMessage());
         }
     }
 
     /**
      * Confirm an appointment by changing status to confirmed.
      */
-    public function confirm(Appointment $appointment)
+    public function confirm(Request $request, Appointment $appointment)
     {
+        $this->authorizeDoctor($appointment);
+
         try {
             $appointment->update(['status' => 'confirmed']);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Cita confirmada exitosamente',
-                'appointment' => $appointment,
-            ], Response::HTTP_OK);
+            $appointment->refresh();
+            $this->sendNotification($appointment, 'confirmed');
+            return $this->respondSuccess($request, 'Cita confirmada exitosamente', $appointment);
 
         } catch (\Exception $e) {
+            return $this->respondError($request, 'Error al confirmar la cita: ' . $e->getMessage());
+        }
+    }
+
+    private function authorizeDoctor(Appointment $appointment): void
+    {
+        if (auth()->guest() || $appointment->user_id !== auth()->id()) {
+            abort(403);
+        }
+    }
+
+    private function sendNotification(Appointment $appointment, string $eventType): void
+    {
+        if (!$appointment->patient_email) {
+            return;
+        }
+
+        Mail::to($appointment->patient_email)
+            ->send(new AppointmentNotificationMail($appointment, $eventType));
+    }
+
+    private function respondSuccess(Request $request, string $message, Appointment $appointment)
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'appointment' => $appointment,
+            ], Response::HTTP_OK);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    private function respondError(Request $request, string $message)
+    {
+        if ($request->expectsJson()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al confirmar la cita: ' . $e->getMessage(),
+                'message' => $message,
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+
+        return redirect()->back()->withErrors(['error' => $message]);
     }
 
     /**

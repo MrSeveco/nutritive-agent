@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Services\DoctorShiftAllocator;
 
 class StoreAppointmentRequest extends FormRequest
 {
@@ -39,7 +40,7 @@ class StoreAppointmentRequest extends FormRequest
                         ->when($userId, function ($query) use ($userId) {
                             $query->where('user_id', $userId);
                         })
-                        ->where('status', '!=', 'canceled')
+                        ->whereIn('status', ['scheduled', 'confirmed', 'canceled'])
                         ->exists();
                     
                     if ($exists) {
@@ -51,19 +52,24 @@ class StoreAppointmentRequest extends FormRequest
                     $daysString = trim($daysString, '{}');
                     $allowedDays = array_map('trim', explode(',', $daysString));
                     
-                    $dayName = \Carbon\Carbon::parse($value)->format('l');
+                    $appointmentDate = \Carbon\Carbon::parse($value);
+                    $dayName = $appointmentDate->format('l');
                     if (!in_array($dayName, $allowedDays)) {
                         $fail('Las citas solo están disponibles los siguientes días: ' . implode(', ', $allowedDays));
                     }
                     
                     // Validar que esté dentro del horario de negocio (8 AM - 6 PM)
-                    $hour = \Carbon\Carbon::parse($value)->hour;
+                    $hour = $appointmentDate->hour;
                     if ($hour < 8 || $hour >= 18) {
                         $fail('Las citas solo están disponibles entre las 8:00 AM y 6:00 PM.');
                     }
+
+                    if ($userId && !DoctorShiftAllocator::isWithinShift($userId, $appointmentDate)) {
+                        $fail('La cita está fuera del turno asignado para este doctor.');
+                    }
                 },
             ],
-            'status' => 'sometimes|in:scheduled,completed,canceled',
+            'status' => 'sometimes|in:scheduled,confirmed,canceled,rejected,completed',
         ];
     }
 
@@ -72,12 +78,9 @@ class StoreAppointmentRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        // Agregar status por defecto si no viene
-        if (!$this->has('status')) {
-            $this->merge([
-                'status' => 'scheduled',
-            ]);
-        }
+        $this->merge([
+            'status' => 'scheduled',
+        ]);
     }
 
     /**

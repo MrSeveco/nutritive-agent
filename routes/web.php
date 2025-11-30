@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\AppointmentController;
+use App\Models\Appointment;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -35,7 +36,39 @@ Route::middleware([
     'verified',
 ])->group(function () {
     Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
+        $user = auth()->user();
+
+        $currentMonthAppointments = Appointment::query()
+            ->where('user_id', $user->id)
+            ->whereBetween('appointment_date', [
+                now()->startOfMonth(),
+                now()->endOfMonth(),
+            ])->count();
+
+        $completedAppointments = Appointment::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'completed')
+            ->count();
+
+        $nextAppointment = Appointment::query()
+            ->where('user_id', $user->id)
+            ->where('appointment_date', '>=', now())
+            ->whereIn('status', ['scheduled', 'confirmed'])
+            ->orderBy('appointment_date')
+            ->first();
+
+        return Inertia::render('Dashboard', [
+            'stats' => [
+                'currentMonthAppointments' => $currentMonthAppointments,
+                'completedAppointments' => $completedAppointments,
+                'nextAppointment' => $nextAppointment ? [
+                    'id' => $nextAppointment->id,
+                    'patient_name' => $nextAppointment->patient_name,
+                    'appointment_date' => $nextAppointment->appointment_date,
+                    'status' => $nextAppointment->status,
+                ] : null,
+            ],
+        ]);
     })->name('dashboard');
 
     // Gestión de citas del doctor
