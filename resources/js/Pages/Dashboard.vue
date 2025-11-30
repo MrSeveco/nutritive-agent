@@ -1,5 +1,48 @@
 <script setup>
+import { computed } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
+
+const props = defineProps({
+    stats: {
+        type: Object,
+        default: () => ({
+            currentMonthAppointments: 0,
+            completedAppointments: 0,
+            nextAppointment: null,
+        }),
+    },
+});
+
+const normalizedStats = computed(() => ({
+    currentMonthAppointments: props.stats?.currentMonthAppointments ?? 0,
+    completedAppointments: props.stats?.completedAppointments ?? 0,
+    nextAppointment: props.stats?.nextAppointment ?? null,
+}));
+
+const nextAppointmentText = computed(() => {
+    const appointment = normalizedStats.value.nextAppointment;
+
+    if (!appointment) {
+        return 'Sin próximas citas';
+    }
+
+    const appointmentDate = new Date(appointment.appointment_date);
+
+    if (Number.isNaN(appointmentDate.getTime())) {
+        return 'Fecha por confirmar';
+    }
+
+    const dateFormatter = new Intl.DateTimeFormat('es-ES', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    });
+
+    return dateFormatter.format(appointmentDate);
+});
 </script>
 
 <template>
@@ -39,7 +82,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
                             </div>
                             <div class="ml-4">
                                 <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Citas del Mes</p>
-                                <p class="text-2xl font-bold text-gray-900 dark:text-white">12</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ normalizedStats.currentMonthAppointments }}</p>
                             </div>
                         </div>
                     </div>
@@ -55,7 +98,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
                             </div>
                             <div class="ml-4">
                                 <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Citas Completadas</p>
-                                <p class="text-2xl font-bold text-gray-900 dark:text-white">8</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ normalizedStats.completedAppointments }}</p>
                             </div>
                         </div>
                     </div>
@@ -71,7 +114,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
                             </div>
                             <div class="ml-4">
                                 <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Próxima Cita</p>
-                                <p class="text-lg font-bold text-gray-900 dark:text-white">Mañana, 10:00 AM</p>
+                                <p class="text-lg font-bold text-gray-900 dark:text-white">{{ nextAppointmentText }}</p>
                             </div>
                         </div>
                     </div>
