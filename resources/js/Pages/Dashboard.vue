@@ -156,7 +156,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
                                     </div>
                                     <span class="text-gray-700 dark:text-gray-300 font-medium">Nueva Cita</span>
                                 </a>
-                                <a href="/profile" class="flex items-center p-4 bg-green-50 dark:bg-gray-700 rounded-xl hover:bg-green-100 dark:hover:bg-gray-600 transition-colors duration-200">
+                                <a href="/user/profile" class="flex items-center p-4 bg-green-50 dark:bg-gray-700 rounded-xl hover:bg-green-100 dark:hover:bg-gray-600 transition-colors duration-200">
                                     <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />

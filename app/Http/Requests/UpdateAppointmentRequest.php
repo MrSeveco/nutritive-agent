@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Services\DoctorShiftAllocator;
 
 class UpdateAppointmentRequest extends FormRequest
 {
@@ -41,7 +42,7 @@ class UpdateAppointmentRequest extends FormRequest
                         ->when($userId, function ($query) use ($userId) {
                             $query->where('user_id', $userId);
                         })
-                        ->where('status', '!=', 'canceled')
+                        ->whereIn('status', ['scheduled', 'confirmed', 'canceled'])
                         ->where('id', '!=', $this->route('appointment')->id)
                         ->exists();
                     
@@ -54,19 +55,24 @@ class UpdateAppointmentRequest extends FormRequest
                     $daysString = trim($daysString, '{}');
                     $allowedDays = array_map('trim', explode(',', $daysString));
                     
-                    $dayName = \Carbon\Carbon::parse($value)->format('l');
+                    $appointmentDate = \Carbon\Carbon::parse($value);
+                    $dayName = $appointmentDate->format('l');
                     if (!in_array($dayName, $allowedDays)) {
                         $fail('Las citas solo están disponibles los siguientes días: ' . implode(', ', $allowedDays));
                     }
                     
                     // Validar que esté dentro del horario de negocio
-                    $hour = \Carbon\Carbon::parse($value)->hour;
+                    $hour = $appointmentDate->hour;
                     if ($hour < 8 || $hour >= 18) {
                         $fail('Las citas solo están disponibles entre las 8:00 AM y 6:00 PM.');
                     }
+
+                    if ($userId && !DoctorShiftAllocator::isWithinShift($userId, $appointmentDate)) {
+                        $fail('La cita está fuera del turno asignado para este doctor.');
+                    }
                 },
             ],
-            'status' => 'sometimes|in:scheduled,completed,canceled',
+            'status' => 'sometimes|in:scheduled,confirmed,canceled,rejected,completed',
         ];
     }
 
@@ -78,7 +84,7 @@ class UpdateAppointmentRequest extends FormRequest
         return [
             'appointment_date.date' => 'La fecha proporcionada no es válida.',
             'appointment_date.after' => 'La cita debe ser programada para una fecha futura.',
-            'status.in' => 'El estado debe ser: scheduled, completed o canceled.',
+            'status.in' => 'El estado debe ser: scheduled, confirmed, canceled, rejected o completed.',
             'user_id.exists' => 'El doctor seleccionado no es válido.',
             'patient_email.email' => 'El correo electrónico no es válido.',
         ];

@@ -2,11 +2,14 @@
 import {Head, router} from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ConfirmationModal from '@/Components/ConfirmationModal.vue';
+import ToastNotification from '@/Components/ToastNotification.vue';
 import { ref } from 'vue';
 
 const props = defineProps({
     appointments: Array,
 });
+
+const toast = ref(null);
 
 // Modal state
 const modalState = ref({
@@ -24,7 +27,7 @@ const openCancelModal = (appointment) => {
         isOpen: true,
         type: 'cancel',
         title: 'Cancelar Cita',
-        message: `¿Estás seguro de que deseas cancelar y eliminar permanentemente la cita del ${formatDateTime(appointment.appointment_date)}? Esta acción no se puede deshacer.`,
+        message: `¿Estás seguro de que deseas cancelar la cita del ${formatDateTime(appointment.appointment_date)}? El paciente será notificado y la cita quedará marcada como cancelada.`,
         appointmentId: appointment.id,
         appointmentDate: appointment.appointment_date,
         isLoading: false
@@ -36,7 +39,7 @@ const openRejectModal = (appointment) => {
         isOpen: true,
         type: 'reject',
         title: 'Rechazar Cita',
-        message: `¿Estás seguro de que deseas rechazar la cita del ${formatDateTime(appointment.appointment_date)}? El paciente será notificado.`,
+        message: `¿Estás seguro de que deseas rechazar la cita del ${formatDateTime(appointment.appointment_date)}? El paciente será notificado y el horario quedará disponible nuevamente.`,
         appointmentId: appointment.id,
         appointmentDate: appointment.appointment_date,
         isLoading: false
@@ -57,40 +60,71 @@ const openConfirmModal = (appointment) => {
 
 const handleModalConfirm = () => {
     modalState.value.isLoading = true;
+    const actionType = modalState.value.type;
 
-    const endpoint = modalState.value.type === 'cancel'
+    const endpoint = actionType === 'cancel'
         ? `/appointments/${modalState.value.appointmentId}/cancel`
-        : modalState.value.type === 'confirm'
+        : actionType === 'confirm'
         ? `/appointments/${modalState.value.appointmentId}/confirm`
         : `/appointments/${modalState.value.appointmentId}/reject`;
 
     router.patch(endpoint, {}, {
         preserveScroll: true,
         onSuccess: () => {
-            const successMessage = modalState.value.type === 'cancel'
-                ? 'Cita cancelada y eliminada exitosamente'
-                : modalState.value.type === 'confirm'
-                ? 'Cita confirmada exitosamente'
-                : 'Cita rechazada exitosamente';
-
             closeModal();
-            // Mostrar notificación de éxito
-            alert(successMessage);
+            const payload = getSuccessToastPayload(actionType);
+            toast.value?.success(payload.title, payload.message);
         },
-        onError: (errors) => {
+        onError: () => {
             modalState.value.isLoading = false;
-            const errorMessage = modalState.value.type === 'cancel'
-                ? 'Error al cancelar la cita'
-                : modalState.value.type === 'confirm'
-                ? 'Error al confirmar la cita'
-                : 'Error al rechazar la cita';
-            alert(errorMessage);
+            const payload = getErrorToastPayload(actionType);
+            toast.value?.error(payload.title, payload.message);
         },
         onFinish: () => {
             modalState.value.isLoading = false;
         }
     });
-};const closeModal = () => {
+};
+
+const getSuccessToastPayload = (type) => {
+    const map = {
+        cancel: {
+            title: 'Cita cancelada',
+            message: 'El paciente fue notificado y la cita quedó marcada en rojo.',
+        },
+        confirm: {
+            title: 'Cita confirmada',
+            message: 'El paciente recibió un correo con la confirmación.',
+        },
+        reject: {
+            title: 'Cita rechazada',
+            message: 'Informamos al paciente y liberamos el horario.',
+        },
+    };
+
+    return map[type] || { title: 'Acción completada', message: '' };
+};
+
+const getErrorToastPayload = (type) => {
+    const map = {
+        cancel: {
+            title: 'No se pudo cancelar',
+            message: 'Intenta nuevamente o verifica tu conexión.',
+        },
+        confirm: {
+            title: 'No se pudo confirmar',
+            message: 'Revisa el estado de la cita e inténtalo otra vez.',
+        },
+        reject: {
+            title: 'No se pudo rechazar',
+            message: 'Hubo un problema liberando el horario.',
+        },
+    };
+
+    return map[type] || { title: 'Acción no completada', message: 'Intenta nuevamente.' };
+};
+
+const closeModal = () => {
     modalState.value = {
         isOpen: false,
         type: 'cancel',
@@ -116,11 +150,11 @@ const formatDateTime = (dateTime) => {
 
 const getStatusColor = (status) => {
     const colors = {
-        scheduled: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-        confirmed: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300',
-        completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-        canceled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-        rejected: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
+        scheduled: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+        confirmed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+        completed: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
+        canceled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+        rejected: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
 };
@@ -281,5 +315,6 @@ const getStatusText = (status) => {
             @close="closeModal"
             @confirm="handleModalConfirm"
         />
+        <ToastNotification ref="toast" />
     </AppLayout>
 </template>

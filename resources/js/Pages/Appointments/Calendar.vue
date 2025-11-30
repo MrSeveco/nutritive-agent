@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import axios from 'axios';
 import AppointmentModal from '@/Components/AppointmentModal.vue';
@@ -19,6 +19,14 @@ const isLoading = ref(false);
 const toast = ref(null);
 
 const doctors = ref(props.doctors ?? []);
+
+const page = usePage();
+const isAuthenticated = computed(() => Boolean(page.props?.auth?.user));
+const authenticatedRole = computed(() => page.props?.auth?.user?.role ?? null);
+const isDoctorView = computed(() => {
+    if (!isAuthenticated.value) return false;
+    return ['doctor', 'doctor_s'].includes(authenticatedRole.value ?? '');
+});
 
 watch(
     () => props.doctors,
@@ -87,6 +95,56 @@ watch(filteredDoctors, (newDoctors) => {
 
 const selectedDoctorDetails = computed(() => {
     return doctors.value.find((doctor) => doctor.id === selectedDoctor.value) ?? null;
+});
+
+const selectedDoctorShift = computed(() => {
+    if (!selectedDoctorDetails.value?.shift) return null;
+    return selectedDoctorDetails.value.shift;
+});
+
+const legendItems = computed(() => {
+    if (isDoctorView.value) {
+        return [
+            {
+                label: 'Disponible',
+                description: 'Puedes asignar esta hora a un paciente.',
+                classes: 'bg-white border-blue-300',
+            },
+            {
+                label: 'Agendada (Pendiente)',
+                description: 'El paciente reservó pero aún no confirmas.',
+                classes: 'bg-yellow-100 border-yellow-300',
+            },
+            {
+                label: 'Confirmada',
+                description: 'Cita aprobada, paciente notificado.',
+                classes: 'bg-green-100 border-green-300',
+            },
+            {
+                label: 'Cancelada',
+                description: 'Cita anulada, visible en rojo.',
+                classes: 'bg-red-100 border-red-300',
+            },
+            {
+                label: 'Completada',
+                description: 'Cita atendida y cerrada.',
+                classes: 'bg-emerald-100 border-emerald-300',
+            },
+        ];
+    }
+
+    return [
+        {
+            label: 'Disponible',
+            description: 'Puedes reservar este horario.',
+            classes: 'bg-white border-blue-300',
+        },
+        {
+            label: 'Reservado',
+            description: 'Otro paciente ya tomó esta hora.',
+            classes: 'bg-gray-200 border-gray-300',
+        },
+    ];
 });
 
 // State for navigation
@@ -355,7 +413,11 @@ function handleSlotClick(event) {
                 isLoading: false
             };
         } else {
-            const statusText = status === 'canceled' ? 'cancelada' : 'completada';
+            const statusText = status === 'canceled'
+                ? 'cancelada'
+                : status === 'confirmed'
+                ? 'confirmada'
+                : 'completada';
             toast.value?.info(
                 'Información de Cita',
                 `Esta cita del ${formattedDate} ya está ${statusText}.`
@@ -442,9 +504,15 @@ function getSlotClasses(event) {
     if (type === 'available') {
         return 'bg-white border-blue-200 text-blue-600 hover:border-blue-500 hover:ring-1 hover:ring-blue-500';
     } else if (type === 'booked') {
-        if (status === 'scheduled') return 'bg-red-50 border-red-200 text-red-600';
-        if (status === 'completed') return 'bg-green-50 border-green-200 text-green-600';
-        if (status === 'canceled') return 'bg-gray-50 border-gray-200 text-gray-400 line-through';
+        if (isDoctorView.value) {
+            if (status === 'scheduled') return 'bg-yellow-50 border-yellow-200 text-yellow-700';
+            if (status === 'confirmed') return 'bg-green-50 border-green-200 text-green-700';
+            if (status === 'canceled') return 'bg-red-50 border-red-200 text-red-700';
+            if (status === 'completed') return 'bg-emerald-50 border-emerald-200 text-emerald-700';
+            return 'bg-gray-100 border-gray-200 text-gray-500';
+        }
+        // Vista de paciente anónimo: cualquier cita tomada se ve en gris
+        return 'bg-gray-100 border-gray-200 text-gray-500';
     }
     return 'bg-gray-50 border-gray-200 text-gray-400';
 }
@@ -492,6 +560,13 @@ function getSlotClasses(event) {
                                                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                         </svg>
                                         <span>Citas de {{ appointmentDuration }} min</span>
+                                    </div>
+                                    <div v-if="selectedDoctorShift" class="flex items-center mt-2 text-gray-500 dark:text-gray-400 text-sm">
+                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M3 8h13M3 16h13M21 12H8" />
+                                        </svg>
+                                        <span>Turno disponible: {{ selectedDoctorShift.start }} - {{ selectedDoctorShift.end }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -579,6 +654,21 @@ function getSlotClasses(event) {
                                         ]">
                                         {{ day.date.getDate() }}
                                     </button>
+                                </div>
+
+                                <div class="mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
+                                    <p class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
+                                        Referencia de colores
+                                    </p>
+                                    <div class="space-y-3">
+                                        <div v-for="(item, index) in legendItems" :key="index" class="flex gap-3">
+                                            <span :class="['w-4 h-4 rounded-md border shadow-sm flex-shrink-0', item.classes]"></span>
+                                            <div>
+                                                <p class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ item.label }}</p>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ item.description }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
