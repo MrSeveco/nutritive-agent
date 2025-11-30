@@ -34,7 +34,42 @@ const logout = () => {
         <Banner />
 
         <div class="min-h-screen bg-gradient-to-br from-green-50 to-teal-50 dark:from-gray-900 dark:to-gray-800">
-            <nav class="bg-white dark:bg-gray-800 border-b border-green-200 dark:border-gray-700 shadow-sm">
+            <!-- Header for non-authenticated users (Welcome page style) -->
+            <header v-if="!$page.props.auth.user" class="sticky top-0 z-50 bg-white/80 backdrop-blur-md shadow-sm dark:bg-gray-900/80">
+                <div class="container mx-auto px-4 py-4">
+                    <div class="flex justify-between items-center">
+                        <!-- Logo -->
+                        <div class="flex items-center space-x-2">
+                            <div class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-green-500 to-teal-500 rounded-full">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <span class="text-xl font-bold text-green-700 dark:text-green-400">Nutritive Agent</span>
+                        </div>
+
+                        <!-- Navigation for non-authenticated users -->
+                        <nav class="flex items-center space-x-4">
+                            <Link
+                                href="/"
+                                class="px-4 py-2 rounded-lg text-green-700 hover:bg-green-50 transition-colors duration-200 dark:text-green-400 dark:hover:bg-gray-800"
+                            >
+                                Página de Inicio
+                            </Link>
+
+                            <Link
+                                :href="route('login')"
+                                class="px-4 py-2 rounded-lg text-green-700 hover:bg-green-50 transition-colors duration-200 dark:text-green-400 dark:hover:bg-gray-800"
+                            >
+                                Iniciar Sesión
+                            </Link>
+                        </nav>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Nav for authenticated users -->
+            <nav v-else class="bg-white dark:bg-gray-800 border-b border-green-200 dark:border-gray-700 shadow-sm">
                 <!-- Primary Navigation Menu -->
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div class="flex justify-between h-16">
@@ -57,7 +92,7 @@ const logout = () => {
 
                             <!-- Navigation Links -->
                             <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                                <NavLink :href="route('dashboard')" :active="route().current('dashboard')" 
+                                <NavLink :href="route('dashboard')" :active="route().current('dashboard')"
                                     class="text-green-700 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 font-medium">
                                     Panel principal
                                 </NavLink>

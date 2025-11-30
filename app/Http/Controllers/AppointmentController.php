@@ -20,8 +20,10 @@ class AppointmentController extends Controller
      */
     public function index()
     {
+        // Filtrar solo las citas del doctor logueado
         return Inertia::render('Appointments/Index', [
             'appointments' => Appointment::with('user')
+                ->where('user_id', auth()->id())
                 ->orderBy('appointment_date', 'desc')
                 ->get()
         ]);
@@ -47,7 +49,7 @@ class AppointmentController extends Controller
                 return $group->values();
             })
             ->toArray();
-        
+
         return Inertia::render('Appointments/Calendar', [
             'daysAvailable' => $daysAvailable,
             // CORRECCIÓN 1: Forzar (int) para evitar el error de prop en Vue
@@ -74,9 +76,9 @@ class AppointmentController extends Controller
         try {
             $start = Carbon::parse($validated['start'], 'UTC')->setTimezone('America/Bogota');
             $end = Carbon::parse($validated['end'], 'UTC')->setTimezone('America/Bogota');
-            
+
             $allSlots = $this->generateAllSlotsWithStatus($start, $end, $userId);
-            
+
             return response()->json($allSlots);
         } catch (\Exception $e) {
             Log::error('Error generando slots: ' . $e->getMessage());
@@ -85,7 +87,7 @@ class AppointmentController extends Controller
     }
 
     /**
-     * Generate all time slots and determine their status (available, booked, etc.). 
+     * Generate all time slots and determine their status (available, booked, etc.).
      */
     private function generateAllSlotsWithStatus(Carbon $start, Carbon $end, int $userId)
     {
@@ -120,21 +122,21 @@ class AppointmentController extends Controller
         while ($currentDate->lte($end)) {
             $dayNameEnglish = $currentDate->format('l');
             $dayNameLocal = $currentDate->translatedFormat('l');
-            
+
             // LOG 4: Ver qué día está analizando el bucle
             Log::info("Analizando día: " . $currentDate->format('Y-m-d') . " ($dayNameEnglish / $dayNameLocal)");
 
             $daysAvailableLower = array_map('strtolower', $daysAvailable);
-            
-            if (in_array(strtolower($dayNameEnglish), $daysAvailableLower) || 
+
+            if (in_array(strtolower($dayNameEnglish), $daysAvailableLower) ||
                 in_array(strtolower($dayNameLocal), $daysAvailableLower)) {
-                
+
                 // LOG 5: ¡Éxito! Entró al IF del día
                 Log::info("-> El día es válido. Generando horas...");
 
                 $slotTime = $currentDate->copy()->setTime(8, 0, 0);
                 $endOfDay = $currentDate->copy()->setTime(18, 0, 0);
-                
+
                 while ($slotTime->lt($endOfDay)) {
                     $slotTimeFormatted = $slotTime->format('Y-m-d H:i:s');
                     $endTime = $slotTime->copy()->addMinutes($duration);
@@ -167,17 +169,17 @@ class AppointmentController extends Controller
                             ];
                         }
                     }
-                    
+
                     $slotTime->addMinutes($duration);
                 }
             } else {
                 // LOG 6: Falló la validación del día
                 Log::info("-> Día NO válido o no configurado.");
             }
-            
+
             $currentDate->addDay();
         }
-        
+
         Log::info("Total slots generados: " . count($slots));
         return $slots;
     }
@@ -310,8 +312,7 @@ class AppointmentController extends Controller
     {
         try {
             $appointment = Appointment::create($request->validated());
-            
-            // Si es una petición JSON (desde el calendario), retornar JSON
+
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => true,
@@ -319,11 +320,9 @@ class AppointmentController extends Controller
                     'appointment' => $appointment->load('user'),
                 ], Response::HTTP_CREATED);
             }
-            
-            // Si es una petición normal, redirigir
             return redirect()->route('appointments.calendar')
                 ->with('success', 'Cita creada exitosamente');
-                
+
         } catch (\Exception $e) {
             if ($request->wantsJson()) {
                 return response()->json([
@@ -331,7 +330,7 @@ class AppointmentController extends Controller
                     'message' => 'Error al crear la cita: ' . $e->getMessage(),
                 ], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
-            
+
             return back()->withErrors(['error' => 'Error al crear la cita']);
         }
     }
@@ -341,7 +340,7 @@ class AppointmentController extends Controller
      */
     public function show(Appointment $appointment)
     {
-        return Inertia::render('Appointments/Index', [
+        return Inertia::render('Appointments/View', [
             'appointment' => $appointment->load('user'),
         ]);
     }
@@ -365,7 +364,7 @@ class AppointmentController extends Controller
     {
         try {
             $appointment->update($request->validated());
-            
+
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => true,
@@ -373,10 +372,10 @@ class AppointmentController extends Controller
                     'appointment' => $appointment->load('user'),
                 ], Response::HTTP_OK);
             }
-            
+
             return redirect()->route('appointments.index')
                 ->with('success', 'Cita actualizada exitosamente');
-                
+
         } catch (\Exception $e) {
             if ($request->wantsJson()) {
                 return response()->json([
@@ -384,29 +383,72 @@ class AppointmentController extends Controller
                     'message' => 'Error al actualizar la cita: ' . $e->getMessage(),
                 ], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
-            
+
             return back()->withErrors(['error' => 'Error al actualizar la cita']);
         }
     }
 
     /**
-     * Cancel an appointment (soft delete by changing status).
+     * Cancel an appointment (delete the record).
      */
     public function cancel(Appointment $appointment)
     {
         try {
-            $appointment->update(['status' => 'canceled']);
-            
+            $appointment->delete();
+
             return response()->json([
                 'success' => true,
-                'message' => 'Cita cancelada exitosamente',
-                'appointment' => $appointment,
+                'message' => 'Cita cancelada y eliminada exitosamente',
             ], Response::HTTP_OK);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error al cancelar la cita: ' . $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Reject an appointment by changing status to rejected.
+     */
+    public function reject(Appointment $appointment)
+    {
+        try {
+            $appointment->update(['status' => 'rejected']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cita rechazada exitosamente',
+                'appointment' => $appointment,
+            ], Response::HTTP_OK);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al rechazar la cita: ' . $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Confirm an appointment by changing status to confirmed.
+     */
+    public function confirm(Appointment $appointment)
+    {
+        try {
+            $appointment->update(['status' => 'confirmed']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cita confirmada exitosamente',
+                'appointment' => $appointment,
+            ], Response::HTTP_OK);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al confirmar la cita: ' . $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -418,10 +460,10 @@ class AppointmentController extends Controller
     {
         try {
             $appointment->delete();
-            
+
             return redirect()->route('appointments.index')
                 ->with('success', 'Cita eliminada exitosamente');
-                
+
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Error al eliminar la cita']);
         }
