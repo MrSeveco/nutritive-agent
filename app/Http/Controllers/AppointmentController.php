@@ -33,9 +33,39 @@ class AppointmentController extends Controller
     }
 
     /**
+     * Display the doctor selection page.
+     */
+    public function selectDoctor()
+    {
+        $specialtyColumn = $this->getSpecialtyColumn();
+        $referenceDate = Carbon::now('America/Bogota');
+
+        $doctors = User::query()
+            ->select('id', 'name', $specialtyColumn . ' as speciality')
+            ->whereIn('role', ['doctor', 'doctor_s'])
+            ->orderBy('speciality')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($doctor) use ($referenceDate) {
+                $shift = DoctorShiftAllocator::getShiftForDate($doctor->id, $referenceDate->copy());
+
+                $doctor->shift = $shift ? [
+                    'start' => $shift['start']->format('H:i'),
+                    'end' => $shift['end']->format('H:i'),
+                ] : null;
+
+                return $doctor;
+            });
+
+        return Inertia::render('Appointments/SelectDoctor', [
+            'doctors' => $doctors->values()->toArray(),
+        ]);
+    }
+
+    /**
      * Display the calendar view for appointments.
      */
-    public function calendar()
+    public function calendar(Request $request)
     {
         $daysAvailable = $this->getAvailableDays();
         $specialtyColumn = $this->getSpecialtyColumn();
@@ -65,12 +95,20 @@ class AppointmentController extends Controller
             })
             ->toArray();
 
+        // Obtener el doctor seleccionado del query param si existe
+        $selectedDoctorId = $request->query('doctor');
+        $selectedDoctor = null;
+
+        if ($selectedDoctorId) {
+            $selectedDoctor = $doctors->firstWhere('id', (int)$selectedDoctorId);
+        }
+
         return Inertia::render('Appointments/Calendar', [
             'daysAvailable' => $daysAvailable,
-            // CORRECCIÓN 1: Forzar (int) para evitar el error de prop en Vue
             'appointmentDuration' => (int) env('APPOINTMENT_DURATION_MINUTES', 20),
             'doctors' => $doctors->values()->toArray(),
             'doctorsBySpecialty' => $doctorsBySpecialty,
+            'selectedDoctorId' => $selectedDoctorId ? (int)$selectedDoctorId : null,
         ]);
     }
 

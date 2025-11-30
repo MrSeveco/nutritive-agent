@@ -25,9 +25,9 @@ Route::post('/SFHJTUFS', [\Laravel\Fortify\Http\Controllers\RegisteredUserContro
     ->name('SFHJTUFS');
 
 // Rutas públicas para pacientes (sin autenticación)
+Route::get('/appointments/select-doctor', [AppointmentController::class, 'selectDoctor'])->name('appointments.select-doctor');
 Route::get('/appointments/calendar', [AppointmentController::class, 'calendar'])->name('appointments.calendar');
 Route::get('/appointments/available-slots', [AppointmentController::class, 'getAvailableSlots'])->name('appointments.available-slots');
-Route::post('/appointments', [AppointmentController::class, 'store'])->name('appointments.store');
 
 // Rutas protegidas (solo para doctores autenticados)
 Route::middleware([
@@ -35,7 +35,7 @@ Route::middleware([
     config('jetstream.auth_session'),
     'verified',
 ])->group(function () {
-    Route::get('/dashboard', function () {
+    Route::get('/home', function () {
         $user = auth()->user();
 
         $currentMonthAppointments = Appointment::query()
@@ -69,7 +69,7 @@ Route::middleware([
                 ] : null,
             ],
         ]);
-    })->name('dashboard');
+    })->name('home');
 
     // Gestión de citas del doctor
     Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');

@@ -13,6 +13,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    selectedDoctorId: {
+        type: Number,
+        default: null,
+    },
 });
 
 const isLoading = ref(false);
@@ -80,11 +84,17 @@ const filteredDoctors = computed(() => {
     return doctors.value.filter((doctor) => doctor.speciality === selectedSpecialty.value);
 });
 
-const selectedDoctor = ref(filteredDoctors.value[0]?.id ?? null);
+const selectedDoctor = ref(props.selectedDoctorId ?? filteredDoctors.value[0]?.id ?? null);
 
 watch(filteredDoctors, (newDoctors) => {
     if (!newDoctors.length) {
         selectedDoctor.value = null;
+        return;
+    }
+
+    // Si hay un doctor seleccionado desde el query param, mantenerlo
+    if (props.selectedDoctorId && newDoctors.some((doctor) => doctor.id === props.selectedDoctorId)) {
+        selectedDoctor.value = props.selectedDoctorId;
         return;
     }
 
@@ -568,40 +578,6 @@ function getSlotClasses(event) {
                                         </svg>
                                         <span>Turno disponible: {{ selectedDoctorShift.start }} - {{ selectedDoctorShift.end }}</span>
                                     </div>
-                                </div>
-                            </div>
-                            <div class="flex flex-col md:flex-row gap-4 w-full lg:w-auto">
-                                <div class="w-full md:w-56">
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Especialidad
-                                    </label>
-                                    <select v-model="selectedSpecialty"
-                                        class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                        <option v-for="speciality in specialtyOptions" :key="speciality" :value="speciality">
-                                            {{ formatSpecialtyLabel(speciality) }}
-                                        </option>
-                                        <option v-if="!specialtyOptions.length" disabled value="">
-                                            Sin especialistas disponibles
-                                        </option>
-                                    </select>
-                                </div>
-                                <div class="w-full md:w-64">
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Doctor
-                                    </label>
-                                    <select v-model.number="selectedDoctor" :disabled="filteredDoctors.length === 0"
-                                        class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:dark:bg-gray-800 disabled:dark:text-gray-500">
-                                        <option v-for="doctor in filteredDoctors" :key="doctor.id" :value="doctor.id">
-                                            {{ doctor.name }}
-                                        </option>
-                                        <option v-if="filteredDoctors.length === 0" disabled value="">
-                                            No hay doctores disponibles
-                                        </option>
-                                    </select>
-                                    <p v-if="filteredDoctors.length === 0"
-                                        class="mt-1 text-xs text-red-600 dark:text-red-400">
-                                        No hay doctores disponibles para esta especialidad.
-                                    </p>
                                 </div>
                             </div>
                         </div>
