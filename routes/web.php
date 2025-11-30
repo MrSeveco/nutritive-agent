@@ -23,14 +23,12 @@ Route::post('/SFHJTUFS', [\Laravel\Fortify\Http\Controllers\RegisteredUserContro
     ->middleware(['guest:'.config('fortify.guard')])
     ->name('SFHJTUFS');
 
+// Rutas públicas para pacientes (sin autenticación)
 Route::get('/appointments/calendar', [AppointmentController::class, 'calendar'])->name('appointments.calendar');
 Route::get('/appointments/available-slots', [AppointmentController::class, 'getAvailableSlots'])->name('appointments.available-slots');
-Route::patch('/appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
-Route::patch('/appointments/{appointment}/reject', [AppointmentController::class, 'reject'])->name('appointments.reject');
-Route::patch('/appointments/{appointment}/confirm', [AppointmentController::class, 'confirm'])->name('appointments.confirm');
-Route::get('/appointments/create', [AppointmentController::class, 'create'])->name('appointments.create');
 Route::post('/appointments', [AppointmentController::class, 'store'])->name('appointments.store');
 
+// Rutas protegidas (solo para doctores autenticados)
 Route::middleware([
     'auth:sanctum',
     config('jetstream.auth_session'),
@@ -39,6 +37,15 @@ Route::middleware([
     Route::get('/dashboard', function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
+
+    // Gestión de citas del doctor
     Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');
+    Route::get('/appointments/create', [AppointmentController::class, 'create'])->name('appointments.create');
+    Route::post('/appointments/create', [AppointmentController::class, 'storeDoctor'])->name('appointments.storeDoctor');
     Route::get('/appointments/{appointment}', [AppointmentController::class, 'show'])->name('appointments.show');
+
+    // Acciones sobre citas (cancelar, rechazar, confirmar)
+    Route::patch('/appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
+    Route::patch('/appointments/{appointment}/reject', [AppointmentController::class, 'reject'])->name('appointments.reject');
+    Route::patch('/appointments/{appointment}/confirm', [AppointmentController::class, 'confirm'])->name('appointments.confirm');
 });

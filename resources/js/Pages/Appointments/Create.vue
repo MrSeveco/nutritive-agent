@@ -27,7 +27,6 @@ const form = useForm({
     user_id: props.userId,
 });
 
-// Generate available dates (next 30 days, filtered by daysAvailable)
 const availableDates = computed(() => {
     const dates = [];
     const today = new Date();
@@ -58,7 +57,6 @@ const availableDates = computed(() => {
     return dates;
 });
 
-// Watch for date changes to load available slots
 watch(selectedDate, async (date) => {
     selectedTime.value = '';
     availableSlots.value = [];
@@ -80,7 +78,6 @@ watch(selectedDate, async (date) => {
             },
         });
 
-        // Filter only available slots for selected date
         availableSlots.value = response.data
             .filter(slot => {
                 const slotDate = slot.start.split(' ')[0];
@@ -114,15 +111,9 @@ const submit = async () => {
     // Construct full datetime
     form.appointment_date = selectedTime.value;
 
-    form.post('/appointments', {
-        preserveScroll: true,
+    form.post('/appointments/create', {
         onSuccess: () => {
             toast.value?.success('¡Éxito!', 'La cita se ha creado exitosamente.');
-
-            // Redirect to appointments index
-            setTimeout(() => {
-                window.location.href = '/appointments';
-            }, 1500);
         },
         onError: (errors) => {
             if (errors.appointment_date && (errors.appointment_date.includes('already been taken') || errors.appointment_date.includes('ya está reservado'))) {

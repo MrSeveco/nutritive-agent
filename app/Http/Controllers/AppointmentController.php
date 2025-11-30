@@ -336,6 +336,18 @@ class AppointmentController extends Controller
         }
     }
 
+    public function storeDoctor(StoreAppointmentRequest $request)
+    {
+        try {
+            Appointment::create($request->validated());
+
+            return redirect()->route('appointments.index');
+
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error al crear la cita: ' . $e->getMessage()]);
+        }
+    }
+
     /**
      * Display the specified resource.
      */
