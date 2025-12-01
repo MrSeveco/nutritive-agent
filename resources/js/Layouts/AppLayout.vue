@@ -76,7 +76,7 @@ const logout = () => {
                         <div class="flex">
                             <!-- Logo Nutritive Agent -->
                             <div class="shrink-0 flex items-center">
-                                <Link :href="route('dashboard')">
+                                <Link :href="route('home')">
                                     <div class="flex items-center space-x-3">
                                         <div class="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-green-500 to-teal-500 rounded-full">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -92,7 +92,7 @@ const logout = () => {
 
                             <!-- Navigation Links -->
                             <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                                <NavLink :href="route('dashboard')" :active="route().current('dashboard')"
+                                <NavLink :href="route('home')" :active="route().current('home')"
                                     class="text-green-700 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 font-medium">
                                     Panel principal
                                 </NavLink>
@@ -190,7 +190,7 @@ const logout = () => {
                 <div :class="{ 'block': showingNavigationDropdown, 'hidden': !showingNavigationDropdown }"
                     class="sm:hidden">
                     <div class="pt-2 pb-3 space-y-1 bg-white dark:bg-gray-800">
-                        <ResponsiveNavLink :href="route('dashboard')" :active="route().current('dashboard')"
+                        <ResponsiveNavLink :href="route('home')" :active="route().current('home')"
                             class="text-green-700 hover:text-green-900 dark:text-green-400">
                             Panel Principal
                         </ResponsiveNavLink>
