@@ -1,57 +1,168 @@
 <script setup>
-import Modal from './Modal.vue';
-
-const emit = defineEmits(['close']);
-
-defineProps({
-    show: {
-        type: Boolean,
-        default: false,
-    },
-    maxWidth: {
+import { computed } from 'vue';
+import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue';
+import {
+    ExclamationTriangleIcon,
+    XCircleIcon,
+    CheckCircleIcon
+} from '@heroicons/vue/24/outline';const props = defineProps({
+    isOpen: Boolean,
+    type: {
         type: String,
-        default: '2xl',
+        default: 'cancel' // 'cancel', 'reject' o 'confirm'
     },
-    closeable: {
-        type: Boolean,
-        default: true,
-    },
+    title: String,
+    message: String,
+    isLoading: Boolean
 });
 
-const close = () => {
+const emit = defineEmits(['close', 'confirm']);
+
+const iconComponent = computed(() => {
+    switch (props.type) {
+        case 'cancel':
+            return XCircleIcon;
+        case 'reject':
+            return ExclamationTriangleIcon;
+        case 'confirm':
+            return CheckCircleIcon;
+        default:
+            return ExclamationTriangleIcon;
+    }
+});
+
+const iconBgClass = computed(() => {
+    switch (props.type) {
+        case 'cancel':
+            return 'bg-red-100 dark:bg-red-900';
+        case 'reject':
+            return 'bg-yellow-100 dark:bg-yellow-900';
+        case 'confirm':
+            return 'bg-blue-100 dark:bg-blue-900';
+        default:
+            return 'bg-red-100 dark:bg-red-900';
+    }
+});
+
+const iconClass = computed(() => {
+    switch (props.type) {
+        case 'cancel':
+            return 'text-red-600 dark:text-red-400';
+        case 'reject':
+            return 'text-yellow-600 dark:text-yellow-400';
+        case 'confirm':
+            return 'text-blue-600 dark:text-blue-400';
+        default:
+            return 'text-red-600 dark:text-red-400';
+    }
+});
+
+const confirmButtonClass = computed(() => {
+    const baseClasses = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2';
+
+    switch (props.type) {
+        case 'cancel':
+            return `bg-red-600 text-white hover:bg-red-500 focus-visible:outline-red-600 disabled:opacity-50 disabled:cursor-not-allowed ${baseClasses}`;
+        case 'reject':
+            return `bg-yellow-600 text-white hover:bg-yellow-500 focus-visible:outline-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed ${baseClasses}`;
+        case 'confirm':
+            return `bg-blue-600 text-white hover:bg-blue-500 focus-visible:outline-blue-600 disabled:opacity-50 disabled:cursor-not-allowed ${baseClasses}`;
+        default:
+            return `bg-red-600 text-white hover:bg-red-500 focus-visible:outline-red-600 disabled:opacity-50 disabled:cursor-not-allowed ${baseClasses}`;
+    }
+});
+
+const confirmButtonText = computed(() => {
+    switch (props.type) {
+        case 'cancel':
+            return 'Sí, Cancelar';
+        case 'reject':
+            return 'Sí, Rechazar';
+        case 'confirm':
+            return 'Sí, Confirmar';
+        default:
+            return 'Confirmar';
+    }
+});function closeModal() {
+    if (props.isLoading) return;
     emit('close');
-};
+}
+
+function confirmAction() {
+    if (props.isLoading) return;
+    emit('confirm');
+}
 </script>
 
 <template>
-    <Modal
-        :show="show"
-        :max-width="maxWidth"
-        :closeable="closeable"
-        @close="close"
-    >
-        <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <div class="sm:flex sm:items-start">
-                <div class="mx-auto shrink-0 flex items-center justify-center size-12 rounded-full bg-red-100 sm:mx-0 sm:size-10">
-                    <svg class="size-6 text-red-600 dark:text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                    </svg>
-                </div>
+    <TransitionRoot as="template" :show="isOpen">
+        <Dialog as="div" class="relative z-50" @close="closeModal">
+            <TransitionChild
+                as="template"
+                enter="ease-out duration-300"
+                enter-from="opacity-0"
+                enter-to="opacity-100"
+                leave="ease-in duration-200"
+                leave-from="opacity-100"
+                leave-to="opacity-0"
+            >
+                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75 transition-opacity" />
+            </TransitionChild>
 
-                <div class="mt-3 text-center sm:mt-0 sm:ms-4 sm:text-start">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">
-                        <slot name="title" />
-                    </h3>
-
-                    <div class="mt-4 text-sm text-gray-600 dark:text-gray-400">
-                        <slot name="content" />
-                    </div>
+            <div class="fixed inset-0 z-10 overflow-y-auto">
+                <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                    <TransitionChild
+                        as="template"
+                        enter="ease-out duration-300"
+                        enter-from="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                        enter-to="opacity-100 translate-y-0 sm:scale-100"
+                        leave="ease-in duration-200"
+                        leave-from="opacity-100 translate-y-0 sm:scale-100"
+                        leave-to="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                    >
+                        <DialogPanel class="relative transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+                            <div>
+                                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full" :class="iconBgClass">
+                                    <component :is="iconComponent" class="h-6 w-6" :class="iconClass" aria-hidden="true" />
+                                </div>
+                                <div class="mt-3 text-center sm:mt-5">
+                                    <DialogTitle as="h3" class="text-base font-semibold leading-6 text-gray-900 dark:text-gray-100">
+                                        {{ title }}
+                                    </DialogTitle>
+                                    <div class="mt-2">
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                                            {{ message }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
+                                <button
+                                    type="button"
+                                    class="inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold shadow-sm sm:col-start-2 transition-colors duration-200"
+                                    :class="confirmButtonClass"
+                                    :disabled="isLoading"
+                                    @click="confirmAction"
+                                >
+                                    <svg v-if="isLoading" class="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    {{ isLoading ? 'Procesando...' : confirmButtonText }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="mt-3 inline-flex w-full justify-center rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-gray-100 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 sm:col-start-1 sm:mt-0 transition-colors duration-200"
+                                    :disabled="isLoading"
+                                    @click="closeModal"
+                                >
+                                    No, volver
+                                </button>
+                            </div>
+                        </DialogPanel>
+                    </TransitionChild>
                 </div>
             </div>
-        </div>
-
-        <div class="flex flex-row justify-end px-6 py-4 bg-gray-100 dark:bg-gray-800 text-end">
-            <slot name="footer" />
-        </div>
-    </Modal>
+        </Dialog>
+    </TransitionRoot>
 </template>

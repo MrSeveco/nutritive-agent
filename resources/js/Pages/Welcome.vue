@@ -5,9 +5,6 @@ defineProps({
     canLogin: {
         type: Boolean,
     },
-    canRegister: {
-        type: Boolean,
-    },
     laravelVersion: {
         type: String,
         required: true,
@@ -38,33 +35,17 @@ defineProps({
 
                     <!-- Navigation -->
                     <nav v-if="canLogin" class="flex items-center space-x-4">
+
                         <Link
-                            v-if="$page.props.auth.user"
-                            :href="route('dashboard')"
+                            :href="route('home')"
                             class="px-4 py-2 rounded-lg text-green-700 hover:bg-green-50 transition-colors duration-200 dark:text-green-400 dark:hover:bg-gray-800"
                         >
-                            Dashboard
+                            Iniciar Sesión
                         </Link>
 
-                        <template v-else>
-                            <Link
-                                :href="route('login')"
-                                class="px-4 py-2 rounded-lg text-green-700 hover:bg-green-50 transition-colors duration-200 dark:text-green-400 dark:hover:bg-gray-800"
-                            >
-                                Iniciar Sesión
-                            </Link>
-
-                            <Link
-                                v-if="canRegister"
-                                :href="route('register')"
-                                class="px-4 py-2 rounded-lg text-green-700 hover:bg-green-50 transition-colors duration-200 dark:text-green-400 dark:hover:bg-gray-800"
-                            >
-                                Registrarse
-                            </Link>
-                        </template>
 
                         <Link
-                            :href="route('appointments.calendar')"
+                            :href="route('appointments.select-doctor')"
                             class="px-6 py-2 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5"
                         >
                             Agendar Cita
@@ -90,7 +71,7 @@ defineProps({
                         </p>
                         <div class="flex flex-col sm:flex-row gap-4">
                             <Link
-                                :href="route('appointments.calendar')"
+                                :href="route('appointments.select-doctor')"
                                 class="px-8 py-4 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-center font-semibold"
                             >
                                 Agendar Cita Gratis
@@ -183,7 +164,7 @@ defineProps({
                 </p>
                 <div class="flex flex-col sm:flex-row justify-center gap-4">
                     <Link
-                        :href="route('appointments.calendar')"
+                        :href="route('appointments.select-doctor')"
                         class="px-8 py-4 bg-white text-green-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-center font-semibold"
                     >
                         Agendar Mi Primera Cita

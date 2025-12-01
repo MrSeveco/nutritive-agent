@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Services\DoctorShiftAllocator;
 
 class StoreAppointmentRequest extends FormRequest
 {
@@ -22,15 +23,24 @@ class StoreAppointmentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'user_id' => 'sometimes|required|exists:users,id',
+            'user_id' => 'required|exists:users,id',
+            'patient_name' => 'required|string|max:255',
+            'patient_document' => 'required|string|max:100',
+            'patient_email' => 'required|email|max:255',
+            'appointment_reason' => 'nullable|string|max:1000',
             'appointment_date' => [
                 'required',
                 'date',
                 'after:now',
                 function ($attribute, $value, $fail) {
                     // Validar que el slot esté disponible
+                    $userId = $this->input('user_id');
+
                     $exists = \App\Models\Appointment::where('appointment_date', $value)
-                        ->where('status', '!=', 'canceled')
+                        ->when($userId, function ($query) use ($userId) {
+                            $query->where('user_id', $userId);
+                        })
+                        ->whereIn('status', ['scheduled', 'confirmed', 'canceled'])
                         ->exists();
                     
                     if ($exists) {
@@ -42,19 +52,24 @@ class StoreAppointmentRequest extends FormRequest
                     $daysString = trim($daysString, '{}');
                     $allowedDays = array_map('trim', explode(',', $daysString));
                     
-                    $dayName = \Carbon\Carbon::parse($value)->format('l');
+                    $appointmentDate = \Carbon\Carbon::parse($value);
+                    $dayName = $appointmentDate->format('l');
                     if (!in_array($dayName, $allowedDays)) {
                         $fail('Las citas solo están disponibles los siguientes días: ' . implode(', ', $allowedDays));
                     }
                     
                     // Validar que esté dentro del horario de negocio (8 AM - 6 PM)
-                    $hour = \Carbon\Carbon::parse($value)->hour;
+                    $hour = $appointmentDate->hour;
                     if ($hour < 8 || $hour >= 18) {
                         $fail('Las citas solo están disponibles entre las 8:00 AM y 6:00 PM.');
                     }
+
+                    if ($userId && !DoctorShiftAllocator::isWithinShift($userId, $appointmentDate)) {
+                        $fail('La cita está fuera del turno asignado para este doctor.');
+                    }
                 },
             ],
-            'status' => 'sometimes|in:scheduled,completed,canceled',
+            'status' => 'sometimes|in:scheduled,confirmed,canceled,rejected,completed',
         ];
     }
 
@@ -63,39 +78,9 @@ class StoreAppointmentRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        // Solo agregar user_id si no viene en la petición
-        if (!$this->has('user_id')) {
-            $this->merge([
-                'user_id' => auth()->id(),
-            ]);
-        }
-        
-        // Agregar status por defecto si no viene
-        if (!$this->has('status')) {
-            $this->merge([
-                'status' => 'scheduled',
-            ]);
-        }
-    }
-
-    /**
-     * Get the validated data from the request.
-     */
-    public function validated($key = null, $default = null)
-    {
-        $validated = parent::validated($key, $default);
-        
-        // Asegurar que user_id esté presente
-        if (!isset($validated['user_id'])) {
-            $validated['user_id'] = auth()->id();
-        }
-        
-        // Asegurar que status esté presente
-        if (!isset($validated['status'])) {
-            $validated['status'] = 'scheduled';
-        }
-        
-        return $validated;
+        $this->merge([
+            'status' => 'scheduled',
+        ]);
     }
 
     /**
@@ -107,6 +92,12 @@ class StoreAppointmentRequest extends FormRequest
             'appointment_date.required' => 'La fecha y hora de la cita es obligatoria.',
             'appointment_date.date' => 'La fecha proporcionada no es válida.',
             'appointment_date.after' => 'La cita debe ser programada para una fecha futura.',
+            'user_id.required' => 'Debes seleccionar un doctor.',
+            'user_id.exists' => 'El doctor seleccionado no es válido.',
+            'patient_name.required' => 'El nombre del paciente es obligatorio.',
+            'patient_document.required' => 'La cédula del paciente es obligatoria.',
+            'patient_email.required' => 'El correo del paciente es obligatorio.',
+            'patient_email.email' => 'El correo electrónico no es válido.',
         ];
     }
 }
