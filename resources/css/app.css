@@ -12,7 +12,7 @@
 
 /* Sobrescribir estilos por defecto de Jetstream */
 .bg-gray-100 {
-    background-color: rgb(240 253 244) !important; /* green-50 */
+    background-color: rgb(26, 34, 46) !important; /* green-50 */
 }
 
 .dark .bg-gray-900 {
