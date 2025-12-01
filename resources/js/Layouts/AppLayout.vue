@@ -1,18 +1,20 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import ApplicationMark from '@/Components/ApplicationMark.vue';
 import Banner from '@/Components/Banner.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
+import { nameToSlug } from '@/Utils/nameToSlug';
 
 defineProps({
     title: String,
 });
 
 const showingNavigationDropdown = ref(false);
+const page = usePage();
 
 const switchToTeam = (team) => {
     router.put(route('current-team.update'), {
@@ -25,6 +27,12 @@ const switchToTeam = (team) => {
 const logout = () => {
     router.post(route('logout'));
 };
+
+const calendarLink = computed(() => {
+    const doctorName = page.props?.auth?.user?.name ?? '';
+    const slug = nameToSlug(doctorName);
+    return slug ? `/calendar?doctor=${slug}` : '/calendar';
+});
 </script>
 
 <template>
@@ -101,8 +109,8 @@ const logout = () => {
                                     class="text-green-700 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 font-medium">
                                     Panel administrativo
                                 </NavLink>
-                                <NavLink :href="route('appointments.calendar')"
-                                    :active="route().current('appointments.calendar')"
+                                <NavLink :href="calendarLink"
+                                    :active="$page.url.startsWith('/calendar')"
                                     class="text-green-700 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 font-medium">
                                     Calendario
                                 </NavLink>
@@ -199,8 +207,8 @@ const logout = () => {
                             class="text-green-700 hover:text-green-900 dark:text-green-400">
                             Panel administrativo
                         </ResponsiveNavLink>
-                        <ResponsiveNavLink :href="route('appointments.calendar')"
-                            :active="route().current('appointments.calendar')"
+                        <ResponsiveNavLink :href="calendarLink"
+                            :active="$page.url.startsWith('/calendar')"
                             class="text-green-700 hover:text-green-900 dark:text-green-400">
                             Calendario
                         </ResponsiveNavLink>

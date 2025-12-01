@@ -27,6 +27,12 @@ const doctors = ref(props.doctors ?? []);
 const page = usePage();
 const isAuthenticated = computed(() => Boolean(page.props?.auth?.user));
 const authenticatedRole = computed(() => page.props?.auth?.user?.role ?? null);
+const authDoctorId = computed(() => {
+    if (!isAuthenticated.value) return null;
+    return ['doctor', 'doctor_s'].includes(authenticatedRole.value ?? '')
+        ? page.props?.auth?.user?.id ?? null
+        : null;
+});
 const isDoctorView = computed(() => {
     if (!isAuthenticated.value) return false;
     return ['doctor', 'doctor_s'].includes(authenticatedRole.value ?? '');
@@ -84,7 +90,21 @@ const filteredDoctors = computed(() => {
     return doctors.value.filter((doctor) => doctor.speciality === selectedSpecialty.value);
 });
 
-const selectedDoctor = ref(props.selectedDoctorId ?? filteredDoctors.value[0]?.id ?? null);
+const resolveSelectedDoctor = () => {
+    const doctorIds = doctors.value.map((doctor) => doctor.id);
+
+    if (props.selectedDoctorId && doctorIds.includes(props.selectedDoctorId)) {
+        return props.selectedDoctorId;
+    }
+
+    if (authDoctorId.value && doctorIds.includes(authDoctorId.value)) {
+        return authDoctorId.value;
+    }
+
+    return filteredDoctors.value[0]?.id ?? null;
+};
+
+const selectedDoctor = ref(resolveSelectedDoctor());
 
 watch(filteredDoctors, (newDoctors) => {
     if (!newDoctors.length) {
@@ -92,14 +112,21 @@ watch(filteredDoctors, (newDoctors) => {
         return;
     }
 
-    // Si hay un doctor seleccionado desde el query param, mantenerlo
-    if (props.selectedDoctorId && newDoctors.some((doctor) => doctor.id === props.selectedDoctorId)) {
-        selectedDoctor.value = props.selectedDoctorId;
-        return;
-    }
-
     if (!newDoctors.some((doctor) => doctor.id === selectedDoctor.value)) {
-        selectedDoctor.value = newDoctors[0].id;
+        selectedDoctor.value = resolveSelectedDoctor();
+    }
+});
+
+watch(
+    () => props.selectedDoctorId,
+    () => {
+        selectedDoctor.value = resolveSelectedDoctor();
+    }
+);
+
+watch(authDoctorId, () => {
+    if (!props.selectedDoctorId) {
+        selectedDoctor.value = resolveSelectedDoctor();
     }
 });
 

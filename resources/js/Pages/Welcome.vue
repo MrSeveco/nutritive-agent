@@ -164,7 +164,7 @@ defineProps({
                 </p>
                 <div class="flex flex-col sm:flex-row justify-center gap-4">
                     <Link
-                        :href="route('appointments.calendar')"
+                        :href="route('appointments.select-doctor')"
                         class="px-8 py-4 bg-white text-green-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-center font-semibold"
                     >
                         Agendar Mi Primera Cita

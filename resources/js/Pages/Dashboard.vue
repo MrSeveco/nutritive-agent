@@ -1,6 +1,8 @@
 <script setup>
 import { computed } from 'vue';
+import { router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { nameToSlug } from '@/Utils/nameToSlug';
 
 const props = defineProps({
     stats: {
@@ -12,6 +14,8 @@ const props = defineProps({
         }),
     },
 });
+
+const page = usePage();
 
 const normalizedStats = computed(() => ({
     currentMonthAppointments: props.stats?.currentMonthAppointments ?? 0,
@@ -43,6 +47,17 @@ const nextAppointmentText = computed(() => {
 
     return dateFormatter.format(appointmentDate);
 });
+
+const calendarLink = computed(() => {
+    const doctorName = page.props?.auth?.user?.name ?? '';
+    const slug = nameToSlug(doctorName);
+    return slug ? `/calendar?doctor=${slug}` : '/calendar';
+});
+
+function selectDoctor(doctor) {
+    const slug = nameToSlug(doctor.name);
+    router.visit(`/calendar?doctor=${slug}&doctor_id=${doctor.id}`);
+}
 </script>
 
 <template>
@@ -137,7 +152,7 @@ const nextAppointmentText = computed(() => {
 
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                             <!-- Calendario de Citas -->
-                            <a href="/appointments/calendar" class="group">
+                            <a :href="calendarLink" class="group">
                                 <div class="bg-gradient-to-br from-green-50 to-teal-50 dark:from-gray-800 dark:to-gray-700 border-2 border-green-200 dark:border-gray-600 rounded-2xl p-8 transition-all duration-300 hover:shadow-2xl hover:border-green-400 dark:hover:border-green-500 hover:-translate-y-2">
                                     <div class="flex items-start justify-between mb-6">
                                         <div class="w-16 h-16 bg-gradient-to-r from-green-500 to-teal-500 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
@@ -207,7 +222,7 @@ const nextAppointmentText = computed(() => {
                                     </div>
                                     <span class="text-gray-700 dark:text-gray-300 font-medium">Mi Perfil</span>
                                 </a>
-                                <a href="/appointments/calendar" class="flex items-center p-4 bg-green-50 dark:bg-gray-700 rounded-xl hover:bg-green-100 dark:hover:bg-gray-600 transition-colors duration-200">
+                                <a href="/calendar" class="flex items-center p-4 bg-green-50 dark:bg-gray-700 rounded-xl hover:bg-green-100 dark:hover:bg-gray-600 transition-colors duration-200">
                                     <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />

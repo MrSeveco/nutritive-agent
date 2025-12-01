@@ -15,6 +15,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class AppointmentController extends Controller
 {
@@ -96,11 +97,18 @@ class AppointmentController extends Controller
             ->toArray();
 
         // Obtener el doctor seleccionado del query param si existe
-        $selectedDoctorId = $request->query('doctor');
-        $selectedDoctor = null;
+        $selectedDoctorId = $request->query('doctor_id');
+        $selectedDoctorSlug = Str::slug($request->doctor);
+        $selectedDoctor = $doctors->first(function ($doctor) use ($selectedDoctorSlug) {
+    return Str::slug($doctor->name) === $selectedDoctorSlug;
+});
 
         if ($selectedDoctorId) {
-            $selectedDoctor = $doctors->firstWhere('id', (int)$selectedDoctorId);
+            $selectedDoctor = $doctors->firstWhere('id', (int) $selectedDoctorId);
+        } elseif ($selectedDoctorSlug) {
+            $selectedDoctor = $doctors->first(function ($doctor) use ($selectedDoctorSlug) {
+                return Str::slug($doctor->name) === $selectedDoctorSlug;
+            });
         }
 
         return Inertia::render('Appointments/Calendar', [
@@ -108,7 +116,7 @@ class AppointmentController extends Controller
             'appointmentDuration' => (int) env('APPOINTMENT_DURATION_MINUTES', 20),
             'doctors' => $doctors->values()->toArray(),
             'doctorsBySpecialty' => $doctorsBySpecialty,
-            'selectedDoctorId' => $selectedDoctorId ? (int)$selectedDoctorId : null,
+            'selectedDoctorId' => $selectedDoctor?->id,
         ]);
     }
 

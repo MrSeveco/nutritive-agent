@@ -26,8 +26,10 @@ Route::post('/SFHJTUFS', [\Laravel\Fortify\Http\Controllers\RegisteredUserContro
 
 // Rutas públicas para pacientes (sin autenticación)
 Route::get('/appointments/select-doctor', [AppointmentController::class, 'selectDoctor'])->name('appointments.select-doctor');
-Route::get('/appointments/calendar', [AppointmentController::class, 'calendar'])->name('appointments.calendar');
+Route::get('/doctors/{doctor}', [AppointmentController::class, 'calendar'])->name('appointments.public-calendar');
 Route::get('/appointments/available-slots', [AppointmentController::class, 'getAvailableSlots'])->name('appointments.available-slots');
+Route::post('/appointments', [AppointmentController::class, 'store'])->name('appointments.store');
+
 
 // Rutas protegidas (solo para doctores autenticados)
 Route::middleware([
@@ -79,6 +81,7 @@ Route::middleware([
 
     // Acciones sobre citas (cancelar, rechazar, confirmar)
     Route::patch('/appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
+    Route::get('/calendar', [AppointmentController::class, 'calendar'])->name('appointments.calendar');
     Route::patch('/appointments/{appointment}/reject', [AppointmentController::class, 'reject'])->name('appointments.reject');
     Route::patch('/appointments/{appointment}/confirm', [AppointmentController::class, 'confirm'])->name('appointments.confirm');
 });

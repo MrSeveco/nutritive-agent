@@ -1,13 +1,25 @@
 <script setup>
-import { Head, router } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { UserIcon } from '@heroicons/vue/24/outline';
+import { nameToSlug } from '@/Utils/nameToSlug';
 
 const props = defineProps({
     doctors: Array,
 });
 
-function selectDoctor(doctorId) {
-    router.visit(`/appointments/calendar?doctor=${doctorId}`);
+const page = usePage();
+const isAuthenticated = computed(() => Boolean(page.props?.auth?.user));
+
+function selectDoctor(doctor) {
+    const slug = nameToSlug(doctor.name);
+
+    if (isAuthenticated.value) {
+        router.visit(`/calendar?doctor=${slug}`);
+        return;
+    }
+
+    router.visit(`/doctors/${slug}`);
 }
 </script>
 
@@ -52,7 +64,7 @@ function selectDoctor(doctorId) {
                     <button
                         v-for="doctor in doctors"
                         :key="doctor.id"
-                        @click="selectDoctor(doctor.id)"
+                        @click="selectDoctor(doctor)"
                         class="bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 p-8 text-left border-2 border-transparent hover:border-green-500 group"
                     >
                         <div class="flex items-start space-x-4">
